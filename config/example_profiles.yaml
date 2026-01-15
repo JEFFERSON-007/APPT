@@ -1,0 +1,77 @@
+# Example Configuration Profiles
+# Copy and customize these for your specific needs
+
+# Quick reconnaissance scan - fast, broad coverage
+scanner:
+  timeout: 1.5
+  threads: 20
+  quick_mode: true
+  service_detection: true
+  ports: "1-10000"
+  output_format: json
+
+# Thorough vulnerability assessment scan
+scanner:
+  timeout: 5.0
+  threads: 10
+  quick_mode: false
+  service_detection: true
+  os_detection: true
+  aggressive: true
+  ports: "1-65535"
+  output_format: html
+
+# SSH brute force attack (authorized only)
+brute_force:
+  protocol: ssh
+  timeout: 5.0
+  threads: 5
+  attack_mode: loop
+  delay: 0.5
+  stop_on_success: false
+  max_retries: 2
+  output_format: json
+  rate_limit: 0.1
+
+# Web application brute force
+brute_force:
+  protocol: http
+  timeout: 10.0
+  threads: 10
+  attack_mode: loop
+  delay: 0.1
+  stop_on_success: true
+  max_retries: 1
+  output_format: json
+
+# Stealth mode - slow, low detection risk
+brute_force:
+  delay: 3.0
+  threads: 1
+  attack_mode: loop
+  rate_limit: 2.0
+  max_retries: 1
+
+scanner:
+  timeout: 5.0
+  threads: 1
+
+# Database attack
+brute_force:
+  protocol: mysql
+  timeout: 5.0
+  threads: 5
+  attack_mode: loop
+  stop_on_success: true
+  max_attempts: 100
+
+# Multi-protocol assessment
+brute_force:
+  attack_mode: loop
+  threads: 10
+  delay: 0.2
+  output_format: html
+
+logging:
+  level: DEBUG
+  enable_audit_log: true

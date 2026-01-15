@@ -1,0 +1,226 @@
+#!/usr/bin/env python3
+"""
+Advanced Penetration Testing Toolkit (APPT)
+Professional command-line interface inspired by Hydra
+"""
+import argparse
+import sys
+import json
+from pathlib import Path
+
+# Add src to path
+sys.path.insert(0, str(Path(__file__).parent / 'src'))
+
+from port_scanner import scan as scan_ports, COMMON_PORTS
+from brute_forcer import attack, AttackMode
+from utils import (
+    is_valid_ip, load_wordlist, save_results, print_banner,
+    Logger, parse_target_list
+)
+
+
+def create_parser():
+    """Create argument parser"""
+    parser = argparse.ArgumentParser(
+        description="Advanced Penetration Testing Toolkit (APPT)",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+EXAMPLES:
+
+  Port Scanning:
+    appt scan 192.168.1.1 --quick
+    appt scan 192.168.1.1 -p 1-10000 -t 50
+    appt scan 192.168.1.1 -p 80,443,22,21 --json
+
+  Brute Forcing:
+    appt brute 192.168.1.100 -u admin -w passwords.txt
+    appt brute 192.168.1.100 -U users.txt -w passwords.txt --protocol ssh
+    appt brute 192.168.1.100 -u admin --attack-mode combo -w combo.txt
+    appt brute 192.168.1.100 -u admin --stop-on-success
+
+  Batch Operations:
+    appt scan targets.txt --quick --threads 100
+    appt brute targets.txt -u admin -w passwords.txt
+
+SUPPORTED PROTOCOLS:
+  - ftp, ssh, http, https, telnet, mysql, postgres, mongodb
+
+ATTACK MODES (Hydra-style):
+  - single:  One password per user
+  - loop:    All passwords for each user (default)
+  - combo:   Paired credentials from file
+        """
+    )
+    
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
+    parser.add_argument("-t", "--threads", type=int, default=20, help="Thread count (default: 20)")
+    parser.add_argument("--output", "-o", help="Output file (auto-format: .json/.csv)")
+    
+    subparsers = parser.add_subparsers(dest="command", help="Tool selection")
+    
+    # Port Scanner
+    scan_parser = subparsers.add_parser("scan", help="Port Scanner")
+    scan_parser.add_argument("target", help="Target IP/hostname or file (targets.txt)")
+    scan_parser.add_argument("-p", "--ports", default="1-1000", help="Port range or list (default: 1-1000)")
+    scan_parser.add_argument("-T", "--timeout", type=float, default=2, help="Timeout in seconds (default: 2)")
+    scan_parser.add_argument("-q", "--quick", action="store_true", help="Scan common ports only")
+    scan_parser.add_argument("--json", action="store_true", help="JSON output")
+    
+    # Brute Force
+    brute_parser = subparsers.add_parser("brute", help="Brute Force Attacker")
+    brute_parser.add_argument("target", help="Target IP/hostname or file (targets.txt)")
+    brute_parser.add_argument("-u", "--username", help="Single username")
+    brute_parser.add_argument("-U", "--userlist", help="Username wordlist file")
+    brute_parser.add_argument("-w", "--wordlist", default="wordlists/passwords.txt", help="Password wordlist (default: wordlists/passwords.txt)")
+    brute_parser.add_argument("-p", "--port", type=int, help="Target port (auto-detected)")
+    brute_parser.add_argument("--protocol", choices=["ftp", "ssh", "http", "https", "telnet", "mysql", "postgres"], 
+                             default="ftp", help="Protocol (default: ftp)")
+    brute_parser.add_argument("--attack-mode", choices=["single", "loop", "combo"], 
+                             default="loop", help="Attack mode (default: loop)")
+    brute_parser.add_argument("--delay", type=float, default=0.1, help="Delay between attempts (default: 0.1)")
+    brute_parser.add_argument("-T", "--timeout", type=float, default=5, help="Timeout in seconds (default: 5)")
+    brute_parser.add_argument("--stop-on-success", action="store_true", help="Stop after first success")
+    brute_parser.add_argument("--json", action="store_true", help="JSON output")
+    
+    return parser
+
+
+def main():
+    """Main entry point"""
+    parser = create_parser()
+    args = parser.parse_args()
+    
+    if not args.command:
+        print_banner()
+        parser.print_help()
+        return
+    
+    logger = Logger(args.verbose)
+    
+    try:
+        if args.command == "scan":
+            handle_scan(args, logger)
+        elif args.command == "brute":
+            handle_brute(args, logger)
+    except KeyboardInterrupt:
+        print("\n\n⚠️  Operation interrupted by user")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Fatal error: {e}")
+        sys.exit(1)
+
+
+def handle_scan(args, logger):
+    """Handle port scanning"""
+    # Parse targets
+    targets = parse_target_list(args.target)
+    
+    if not targets:
+        logger.error("No valid targets")
+        return
+    
+    logger.info(f"Scanning {len(targets)} target(s)")
+    
+    all_results = []
+    
+    for target in targets:
+        if not is_valid_ip(target):
+            logger.warning(f"Skipping invalid target: {target}")
+            continue
+        
+        # Parse ports
+        if args.quick:
+            ports = COMMON_PORTS
+        else:
+            scanner_obj = __import__('port_scanner', fromlist=['PortScanner']).PortScanner(target)
+            ports = scanner_obj.parse_port_spec(args.ports)
+        
+        if not ports:
+            logger.warning(f"No ports to scan on {target}")
+            continue
+        
+        results = scan_ports(target, ports, args.timeout, args.threads, args.quick, args.verbose)
+        
+        if isinstance(results, list):
+            all_results.extend(results)
+    
+    # Save results if requested
+    if args.output:
+        format = "json" if args.output.endswith(".json") else "csv"
+        save_results(all_results, args.output, format)
+    
+    if args.json:
+        print("\n" + json.dumps(all_results, indent=2))
+
+
+def handle_brute(args, logger):
+    """Handle brute force attack"""
+    # Validate target
+    targets = parse_target_list(args.target)
+    
+    if not targets:
+        logger.error("No valid targets")
+        return
+    
+    # Load wordlists
+    if args.username:
+        usernames = [args.username]
+    elif args.userlist:
+        usernames = load_wordlist(args.userlist)
+    else:
+        logger.error("No username(s) specified. Use -u or -U")
+        return
+    
+    if not usernames:
+        logger.error("No usernames loaded")
+        return
+    
+    passwords = load_wordlist(args.wordlist)
+    if not passwords:
+        logger.error("No passwords loaded")
+        return
+    
+    logger.info(f"Loaded {len(usernames)} username(s) and {len(passwords)} password(s)")
+    
+    all_results = []
+    
+    for target in targets:
+        if not is_valid_ip(target):
+            logger.warning(f"Skipping invalid target: {target}")
+            continue
+        
+        logger.info(f"Attacking {target}:{args.port or 'default'}")
+        
+        credentials = attack(
+            host=target,
+            usernames=usernames,
+            passwords=passwords,
+            protocol=args.protocol,
+            port=args.port,
+            num_threads=args.threads,
+            timeout=args.timeout,
+            attack_mode=args.attack_mode,
+            stop_on_success=args.stop_on_success,
+            verbose=args.verbose
+        )
+        
+        if credentials:
+            for cred in credentials:
+                all_results.append({
+                    "host": target,
+                    "protocol": args.protocol,
+                    "username": cred.username,
+                    "password": cred.password
+                })
+    
+    # Save results if requested
+    if args.output:
+        format = "json" if args.output.endswith(".json") else "csv"
+        save_results(all_results, args.output, format)
+    
+    if args.json:
+        print("\n" + json.dumps(all_results, indent=2))
+
+
+if __name__ == "__main__":
+    main()

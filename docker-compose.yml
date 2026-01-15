@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Main penetration testing toolkit
+  pentesting-toolkit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pentesting-toolkit
+    volumes:
+      - ./logs:/app/logs
+      - ./output:/app/output
+      - ./config:/app/config
+      - ./wordlists:/app/wordlists
+    environment:
+      - PTK_LOG_LEVEL=DEBUG
+      - PTK_SCANNER_THREADS=10
+      - PTK_BF_THREADS=5
+    networks:
+      - pentest-net
+    restart: unless-stopped
+
+  # Optional: Log aggregation service
+  elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.0.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - pentest-net
+    restart: unless-stopped
+
+  # Optional: Results visualization
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.0.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elastic
+    networks:
+      - pentest-net
+    restart: unless-stopped
+
+volumes:
+  esdata:
+    driver: local
+
+networks:
+  pentest-net:
+    driver: bridge
