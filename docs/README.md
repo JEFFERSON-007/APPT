@@ -1,437 +1,161 @@
-# Advanced Penetration Testing Toolkit (APPT)
-
-Professional security assessment framework inspired by Hydra and other industry-standard tools.
-
-## Features
-
-### 🔍 Advanced Port Scanner
-- **Multi-threaded scanning** - 100+ ports/second
-- **Service fingerprinting** - Identify services and versions
-- **Flexible port ranges** - 1-1000, 80,443,22, or individual ports
-- **Quick scan mode** - Common ports only (~14 ports)
-- **Real-time feedback** - Live discovery notifications
-- **Multiple export formats** - JSON, CSV, text
-
-### 🔓 Professional Brute Forcer
-- **Multi-protocol support** - FTP, SSH, HTTP, HTTPS, Telnet, MySQL, PostgreSQL, MongoDB
-- **Hydra-style attack modes**:
-  - `single` - One password per user
-  - `loop` - All passwords for each user
-  - `combo` - Paired user:password credentials
-- **Rate limiting** - Configurable delays to avoid detection
-- **Multi-threaded attacks** - 100+ attempts/second
-- **Real-time notifications** - Immediate success alerts
-- **Batch operations** - Attack multiple targets
-
-### 🛠️ Professional Features
-- **Batch processing** - Single command for multiple targets
-- **Configuration files** - Store attack profiles
-- **Output formats** - JSON, CSV, text
-- **Comprehensive logging** - Detailed operation records
-- **Error recovery** - Graceful failure handling
-- **Performance metrics** - Speed, success rate, timing
-
-## Installation
-
-### Requirements
-- Python 3.7+
-- Recommended: paramiko, requests
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Make executable (Linux/macOS)
-chmod +x appt
-```
-
-## Quick Start
-
-### Port Scanning
-
-```bash
-# Scan common ports
-./appt scan 192.168.1.1 --quick
-
-# Scan specific port range
-./appt scan 192.168.1.1 -p 1-10000 -t 50
-
-# Scan specific ports
-./appt scan 192.168.1.1 -p 80,443,22,21
-
-# Batch scan
-./appt scan targets.txt --quick
-
-# Save results
-./appt scan 192.168.1.1 --quick -o results.json
-```
-
-### Brute Force
-
-```bash
-# Single username FTP
-./appt brute 192.168.1.100 -u admin -w wordlists/passwords.txt
-
-# Multiple usernames
-./appt brute 192.168.1.100 -U wordlists/usernames.txt -w wordlists/passwords.txt
-
-# SSH attack
-./appt brute 192.168.1.100 --protocol ssh -u admin -w wordlists/passwords.txt
-
-# Attack modes
-./appt brute 192.168.1.100 -u admin --attack-mode single -w wordlists/passwords.txt
-./appt brute 192.168.1.100 -u admin --attack-mode loop -w wordlists/passwords.txt
-./appt brute 192.168.1.100 -u admin --attack-mode combo -w wordlists/combo.txt
-
-# Stop on first success
-./appt brute 192.168.1.100 -u admin --stop-on-success
-
-# Batch attack
-./appt brute targets.txt -u admin -w wordlists/passwords.txt
-
-# Increase threads for speed
-./appt brute 192.168.1.100 -u admin -w wordlists/passwords.txt -t 50
-
-# Stealth mode (slower)
-./appt brute 192.168.1.100 -u admin -w wordlists/passwords.txt --delay 1.0 -t 5
-```
-
-## Command Reference
-
-### Global Options
-```
--v, --verbose           Verbose output
--t, --threads N         Number of threads (default: 20)
--o, --output FILE       Output file (auto-format)
-```
-
-### Port Scanner
-```
-appt scan TARGET [OPTIONS]
-
-Arguments:
-  target                Target IP, hostname, or file (targets.txt)
-
-Options:
-  -p, --ports RANGE     Port spec: 1-1000, 80,443,22, or 1-65535
-  -T, --timeout SEC     Connection timeout (default: 2)
-  -q, --quick          Common ports only
-  --json                JSON output
-```
-
-### Brute Forcer
-```
-appt brute TARGET [OPTIONS]
-
-Arguments:
-  target                Target IP, hostname, or file (targets.txt)
-
-Options:
-  -u, --username USER   Single username
-  -U, --userlist FILE   Username wordlist
-  -w, --wordlist FILE   Password wordlist (default: wordlists/passwords.txt)
-  -p, --port PORT       Target port (auto-detected)
-  --protocol PROTO      ftp|ssh|http|https|telnet|mysql|postgres
-  --attack-mode MODE    single|loop|combo (default: loop)
-  --delay SEC          Delay between attempts (default: 0.1)
-  -T, --timeout SEC     Connection timeout (default: 5)
-  --stop-on-success    Stop after first match
-  --json                JSON output
-```
-
-## Attack Modes (Hydra-style)
-
-### Single Mode
-- One password per user
-- Example: user1→pass1, user2→pass2
-- Use case: Credential pairs from data breach
-
-```bash
-./appt brute 192.168.1.100 -U usernames.txt -w passwords.txt --attack-mode single
-```
-
-### Loop Mode (Default)
-- All passwords tested for each user
-- Example: user1→pass1, user1→pass2, user1→pass3, user2→pass1, ...
-- Use case: Dictionary attack
-
-```bash
-./appt brute 192.168.1.100 -u admin -w wordlists/passwords.txt --attack-mode loop
-```
-
-### Combo Mode
-- Paired user:password combinations
-- Use case: Known credential pairs
-- File format: one pair per line
-
-```bash
-./appt brute 192.168.1.100 -U combo.txt -w combo.txt --attack-mode combo
-```
-
-## Protocols Supported
-
-| Protocol | Port | Notes |
-|----------|------|-------|
-| FTP | 21 | File Transfer |
-| SSH | 22 | Secure Shell |
-| HTTP | 80 | Web (Basic Auth) |
-| HTTPS | 443 | Secure Web (Basic Auth) |
-| Telnet | 23 | Terminal |
-| MySQL | 3306 | Database |
-| PostgreSQL | 5432 | Database |
-| MongoDB | 27017 | NoSQL Database |
-
-## Performance Tuning
-
-### For Speed
-```bash
-# Increase threads
-./appt scan 192.168.1.1 -p 1-10000 -t 100
-
-# Reduce timeout
-./appt scan 192.168.1.1 -p 1-10000 --timeout 0.5
-
-# Quick mode
-./appt scan 192.168.1.1 --quick
-
-# Brute force with 50 threads
-./appt brute 192.168.1.100 -u admin -w passwords.txt -t 50
-```
-
-### For Stealth
-```bash
-# Increase delay
-./appt brute 192.168.1.100 -u admin -w passwords.txt --delay 2.0
-
-# Reduce threads
-./appt brute 192.168.1.100 -u admin -w passwords.txt -t 5
-
-# Increase timeout
-./appt brute 192.168.1.100 -u admin -w passwords.txt --timeout 10
-```
-
-## Batch Operations
-
-### Scan Multiple Targets
-```bash
-# Create targets.txt
-cat > targets.txt
-192.168.1.1
-192.168.1.100
-192.168.1.200
-
-# Scan all
-./appt scan targets.txt --quick -o results.json
-```
-
-### Attack Multiple Targets
-```bash
-./appt brute targets.txt -u admin -w passwords.txt -o credentials.json
-```
-
-## Output Formats
-
-### JSON
-```bash
-./appt scan 192.168.1.1 -p 80,443 --json
-```
-
-Output:
-```json
-[
-  {
-    "port": 80,
-    "service": "HTTP",
-    "version": "Apache/2.4.41",
-    "state": "open"
-  },
-  {
-    "port": 443,
-    "service": "HTTPS",
-    "version": "nginx/1.18.0",
-    "state": "open"
-  }
-]
-```
-
-### CSV
-```bash
-./appt scan 192.168.1.1 -p 80,443 -o results.csv
-```
-
-## Configuration
-
-Edit `config/default.conf` to customize defaults:
-
-```ini
-[scanner]
-timeout = 2.0
-threads = 20
-
-[brute_force]
-timeout = 5.0
-threads = 10
-delay = 0.1
-attack_mode = loop
-```
-
-## Wordlist Management
-
-### Default Wordlists
-- `wordlists/passwords.txt` - 100 common passwords
-- `wordlists/usernames.txt` - Common usernames
-
-### Custom Wordlists
-```bash
-# Create custom password list
-cat > wordlists/custom.txt
-password
-custom123
-...
-
-# Use it
-./appt brute 192.168.1.100 -u admin -w wordlists/custom.txt
-```
-
-### Wordlist Sources
-- SecLists: https://github.com/danielmiessler/SecLists
-- Rockyou: https://wiki.skullsecurity.org
-- Crunch: Generate custom wordlists
-
-## Advanced Usage
-
-### Attack Profile
-```bash
-# DNS + SSH combo
-./appt scan 192.168.1.0/24 -p 53,22 --quick
-./appt brute 192.168.1.100 --protocol ssh -u admin -w passwords.txt
-
-# Web server full assessment
-./appt scan 192.168.1.100 -p 1-10000
-./appt brute 192.168.1.100 --protocol http -U users.txt -w passwords.txt
-```
-
-### Scheduled Scans
-```bash
-# Run nightly scan
-0 2 * * * /path/to/appt scan targets.txt --quick -o output/scan_$(date +\%Y\%m\%d).json
-```
-
-## Troubleshooting
-
-### Connection Refused
-- Ensure target is online
-- Check firewall rules
-- Verify port is correct
-
-### Timeout Errors
-- Increase timeout: `--timeout 10`
-- Check network connectivity
-- Reduce thread count: `-t 10`
-
-### Authentication Failures
-- Verify credentials
-- Check protocol version compatibility
-- Try different attack mode
-
-### Slow Scanning
-- Increase threads: `-t 100`
-- Reduce timeout: `--timeout 0.5`
-- Use quick mode: `--quick`
-
-## Security Considerations
-
-⚠️ **LEGAL WARNING**
-- Only test systems you own or have written authorization to test
-- Unauthorized access to computer systems is ILLEGAL
-- This tool is for authorized security testing only
-- Use responsibly and ethically
-
-### Best Practices
-- Get written approval before testing
-- Document all activities
-- Use stealth modes on production systems
-- Minimize impact on target systems
-- Follow responsible disclosure
-
-## Performance Benchmarks
-
-| Task | Speed | Threads |
-|------|-------|---------|
-| 1000 port scan | ~45 seconds | 20 |
-| 500 password FTP | ~12 seconds | 30 |
-| 500 password SSH | ~15 seconds | 30 |
-| 100000 port scan | ~30 minutes | 100 |
-
-## File Structure
-
-```
-PENETRATION-TESTING-TOOLKIT/
-├── appt                    # Main executable
-├── src/                    # Source code
-│   ├── __init__.py
-│   ├── port_scanner.py
-│   ├── brute_forcer.py
-│   └── utils.py
-├── config/
-│   └── default.conf       # Configuration
-├── wordlists/
-│   ├── passwords.txt
-│   └── usernames.txt
-├── docs/                  # Documentation
-├── output/                # Results directory
-├── requirements.txt       # Dependencies
-└── README.md             # This file
-```
-
-## Requirements
-
-```
-paramiko>=2.7.0      # SSH support
-requests>=2.25.0     # HTTP support
-```
-
-Install with:
-```bash
-pip install -r requirements.txt
-```
-
-## Version History
-
-- **v2.1** (Current)
-  - Professional reorganization
-  - Hydra-style attack modes
-  - Improved service fingerprinting
-  - Configuration file support
-  - Batch operations
-
-- **v2.0**
-  - Multi-threading
-  - Multi-protocol support
-  - Professional CLI
-
-## Contributing
-
-Suggestions and improvements welcome!
-
-## License
-
-Educational and authorized testing purposes only.
-
-## Support
-
-For help:
-```bash
-./appt --help
-./appt scan --help
-./appt brute --help
+# Advanced Penetration Testing Toolkit (APPT) v2.1
+
+[![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
+[![Security Assessment](https://img.shields.io/badge/Framework-Penetration_Testing-darkred?style=flat-square)](#)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+
+**APPT (Advanced Penetration Testing Toolkit)** is a modular, high-throughput network security auditing and credential stress-testing framework. Inspired by Hydra and Nmap, APPT combines multi-threaded port and service fingerprinting, credential dictionary attacks across multiple network protocols, rich session logging, and multi-format forensic reporting (JSON, CSV, HTML).
+
+---
+
+## 📸 Interface & Terminal Preview
+
+<div align="center">
+  <img src="../Screenshot%202025-06-17%20211536.png" alt="APPT Terminal Execution Preview" width="850"/>
+</div>
+
+---
+
+## 🌟 Key Capabilities
+
+### 1. High-Performance Reconnaissance & Port Scanning
+- **Concurrent Threading**: Multi-worker thread pools with adaptive socket timeouts (100+ ports/sec).
+- **Service Fingerprinting**: Automatic banner retrieval across common TCP/UDP ports (SSH, FTP, HTTP/S, SMTP, Telnet, MySQL, PostgreSQL, MongoDB).
+- **Target Flexibility**: Supports individual hostnames, IPv4 addresses, and batch target lists (`targets.txt`).
+
+### 2. Multi-Protocol Credential Auditing (Hydra-Style)
+- **Supported Protocols**: SSH, FTP, HTTP Basic/Digest, HTTPS, Telnet, MySQL, PostgreSQL, MongoDB.
+- **Attack Modes**:
+  - `single`: One password per user (data breach verification).
+  - `loop`: All dictionary passwords per target user.
+  - `combo`: Paired user:password combinations.
+- **Smart Rate Limiting**: Anti-lockout delay throttles and jitter randomization to evade intrusion prevention thresholds during authorized audits.
+
+### 3. Reporting & Operational Telemetry
+- **Multi-Format Export**: Generates audit deliverables in JSON, CSV, and formatted text.
+- **Real-Time Progress**: Live terminal metrics with probes per second, active worker counts, and calculated ETA.
+
+---
+
+## 🏗️ Architecture & Component Layout
+
+```mermaid
+flowchart TD
+    CLI["CLI Controller (`appt`)"] --> Config["Config Profiles (`config/default.conf`)"]
+    CLI --> Recon["Reconnaissance & Port Scanning Engine"]
+    CLI --> AuthAudit["Protocol Authentication Auditing Module"]
+    
+    subgraph Protocols["Supported Protocol Handlers"]
+        SSH["SSH Handler (Paramiko)"]
+        FTP["FTP Handler"]
+        HTTP["HTTP/HTTPS Auth Handler"]
+        DB["MySQL / Postgres / Mongo Handlers"]
+    end
+
+    AuthAudit --> Protocols
+    Recon & AuthAudit --> Telemetry["Real-time Progress Tracker & Logger"]
+    Telemetry --> Reporter["Multi-Format Reporter (JSON, CSV, Text)"]
 ```
 
 ---
 
-**Status**: ✅ Production Ready
+## 📁 Repository Structure
 
-**Version**: 2.1
+```text
+├── appt                        # Executable CLI launcher
+├── Dockerfile                  # Containerized deployment manifest
+├── docker-compose.yml          # Container orchestration configuration
+├── Screenshot 2025-06-17...png # Terminal execution screenshot
+├── src/                        # Core toolkit source code
+│   ├── port_scanner.py         # Threaded port scanner & banner grabber
+│   ├── brute_forcer.py         # Protocol handlers (SSH, FTP, HTTP)
+│   └── utils.py                # Input validation, networking utilities
+├── wordlists/                  # Curated auditing dictionary assets (passwords.txt, usernames.txt)
+├── config/                     # Configuration file (`default.conf`)
+├── examples.py                 # Programmatic Python API usage examples
+├── USER_MANUAL.md              # Complete 1,000+ line user operations manual
+├── CODE_WALKTHROUGH.md         # Detailed code walkthrough & module internals
+└── docs/README.md              # Technical documentation
+```
 
-**Updated**: January 2026
+---
 
+## 🚀 Installation & Quickstart
+
+### Prerequisites
+- Python 3.9+
+- Network access to authorized target systems
+
+### 1. Local Python Setup
+```bash
+# Clone the repository
+git clone https://github.com/JEFFERSON-007/APPT.git
+cd APPT
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Make launcher executable (Linux/macOS)
+chmod +x appt
+
+# Run the interactive CLI
+./appt --help
+```
+
+### 2. Docker Deployment
+```bash
+# Build and run using Docker Compose
+docker compose up -d
+
+# Execute commands within the container
+docker compose exec appt python appt -t 127.0.0.1 -p 22,80,443
+```
+
+---
+
+## 📖 Command Usage Examples
+
+### Port Scanning
+```bash
+# Scan common ports on target
+./appt scan 192.168.1.1 --quick
+
+# Scan specific port range with 50 threads
+./appt scan 192.168.1.1 -p 1-10000 -t 50
+
+# Save structured output to JSON
+./appt scan 192.168.1.1 -p 80,443,22,21 --json -o results.json
+```
+
+### Credential Auditing
+```bash
+# SSH dictionary audit for single user
+./appt brute 192.168.1.100 --protocol ssh -u admin -w wordlists/passwords.txt
+
+# Multi-user FTP audit with rate limiting
+./appt brute 192.168.1.100 --protocol ftp -U wordlists/usernames.txt -w wordlists/passwords.txt --delay 0.5
+
+# Stop on first successful authentication
+./appt brute 192.168.1.100 -u admin --stop-on-success
+```
+
+---
+
+## 📚 Documentation Links
+- [Comprehensive User Manual](../USER_MANUAL.md) — 10-chapter deep dive into advanced configurations.
+- [Code Architecture Walkthrough](../CODE_WALKTHROUGH.md) — Module connections, design patterns, and class structures.
+- [Bug Fixes & Changelog](../BUG_FIXES.md) — History of stability updates.
+
+---
+
+## ⚖️ Legal Disclaimer
+
+> [!CAUTION]
+> The Advanced Penetration Testing Toolkit (APPT) is designed exclusively for **authorized security testing, educational research, and defensive evaluation**. Performing credential testing or unauthorized port scanning against systems without explicit, documented permission is strictly prohibited.
+
+---
+
+## 👤 Author
+Developed by **[JEFFERSON RAJA A](https://github.com/JEFFERSON-007)**  
+*Cybersecurity Engineering & Offensive Security Research.*
